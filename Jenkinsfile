@@ -1,71 +1,44 @@
 pipeline {
     agent any
     
-    tools {
-        maven 'Maven-3.6'
-        jdk 'JDK-11'
+    environment {
+        JAVA_HOME = '/usr/lib/jvm/java-21-openjdk-amd64'
+        PATH = "${JAVA_HOME}/bin:${env.PATH}"
     }
     
     stages {
-        stage('🔄 Checkout') {
+        stage('🔧 Verificar Entorno') {
             steps {
-                echo '📥 Clonando código desde GitHub...'
-                checkout scm
+                sh '''
+                    echo "JAVA_HOME configurado: $JAVA_HOME"
+                    echo "PATH: $PATH"
+                    ls -la $JAVA_HOME || echo "JAVA_HOME no accesible"
+                    java -version || echo "java no funciona"
+                    mvn -version || echo "mvn no funciona"
+                '''
             }
         }
         
-        stage('🧹 Limpiar') {
+        stage('🧹 Compilar y Probar') {
             steps {
-                echo '🧹 Limpiando proyecto...'
-                sh 'mvn clean'
+                sh 'mvn clean compile test package'
             }
         }
         
-        stage('⚙️ Compilar') {
+        stage('🚀 Ejecutar') {
             steps {
-                echo '⚙️ Compilando código Java...'
-                sh 'mvn compile'
-            }
-        }
-        
-        stage('🧪 Pruebas') {
-            steps {
-                echo '🧪 Ejecutando pruebas unitarias...'
-                sh 'mvn test'
-            }
-            post {
-                always {
-                    junit 'target/surefire-reports/*.xml'
-                }
-            }
-        }
-        
-        stage('📦 Empaquetar') {
-            steps {
-                echo '📦 Generando JAR...'
-                sh 'mvn package'
-            }
-        }
-        
-        stage('🚀 Ejecutar App') {
-            steps {
-                echo '🚀 Probando ejecución de la aplicación...'
-                sh 'java -cp target/classes com.ejemplo.saludo.App "Jenkins CI/CD"'
+                sh 'java -cp target/classes com.ejemplo.saludo.App "Jenkins Test"'
             }
         }
     }
     
     post {
         success {
-            echo '✅ ¡Pipeline ejecutado exitosamente!'
-            archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+            echo '✅ Build exitoso'
+            archiveArtifacts artifacts: 'target/*.jar', allowEmptyArchive: true
         }
         failure {
-            echo '❌ Pipeline falló. Revisar logs.'
-        }
-        always {
-            echo '🧹 Limpiando workspace...'
-            cleanWs()
+            echo '❌ Build falló'
         }
     }
 }
